@@ -6,12 +6,15 @@
         height: 30px;
         width: 30px;
         outline: none;
+        margin-left: 10px;
       }
     </style>
   </head>
-  <body>
-    <button id="changeColor"></button>
-    <h3>Saved tabs</h3>
+  <body style="min-width: 200px; min-height: 250px;">
+    <div>
+      <input id="createNewName" type="text">
+      <button id="createNew">Save new</button>
+    </div>
     <div id="savedTabs">
     </div>
     <script src="popup.js"></script>
