@@ -104,7 +104,12 @@ function deleteSet(e) {
 window.onload = function() {
 	chrome.storage.sync.get('savedTabSets', function(data) {
 		if (data.savedTabSets && data.savedTabSets.length) {
-			renderTabSets(data.savedTabSets);	
+			for (var i = 0; i < data.savedTabSets.length; i++) {
+				var id = data.savedTabSets[i];
+				chrome.storage.sync.get(id, function(data) {
+					renderTabSets(data[id]);	
+				});
+			};
 		};
 	});
 }
