@@ -6,6 +6,11 @@
 // need to store set of ID's as one item and then use that as a lookup of individual sets to retrieve
 // also consider shortening size of each set by reducing names
 
+// add "replace" functionality, or perhaps identify which is the "current session" based on the one that's just got saved or restored
+// can add automatic update functionality that updates as tabs are opened and closed
+// already populate the popup with current tabs and say "add" if we know it's not from an already-loaded session
+// would require tracking which window has been saved/restored from which session
+
 'use strict';
 
 let createNewBtn = document.getElementById('createNew');
@@ -21,7 +26,7 @@ createNewBtn.onclick = function(element) {
 	    	let tab = tabs[i];
 	    	currentOpenTabs.push({iconUrl: tab.favIconUrl, url: tab.url, title: tab.title});	
 	    }
-	    var obj = {name: name, tabs: currentOpenTabs};
+	    var obj = {name: name, tabs: currentOpenTabs, id: currentSavedSets.length};
 	    currentSavedSets.push(obj);
 	    renderTabSet(obj);
 	    chrome.storage.local.set({savedTabSets: currentSavedSets});
@@ -45,22 +50,23 @@ function renderTabSet(tabSet) {
 	let tabWidth = 30;
 	let tabMargin = 5;
 	let tabSetEl = document.createElement("div");
+
 	let titleEl = document.createElement("div");
 	titleEl.textContent = name;
 	tabSetEl.appendChild(titleEl);
 
 	let restoreEl = document.createElement("button");
 	restoreEl.setAttribute("class", "restoreBtn");
-	restoreEl.setAttribute("data-name", name);
-	restoreEl.style = "cursor: pointer";
+	restoreEl.setAttribute("data-id", tabSet.id);
+	restoreEl.classList.add("pointer");
 	restoreEl.textContent = "restore";
 	restoreEl.addEventListener("click", restoreSet);
 	titleEl.appendChild(restoreEl);
 
 	let deleteEl = document.createElement("button");
 	deleteEl.setAttribute("class", "deleteBtn");
-	deleteEl.setAttribute("data-name", name);
-	deleteEl.style = "cursor: pointer";
+	deleteEl.setAttribute("data-id", tabSet.id);
+	deleteEl.classList.add("pointer");
 	deleteEl.textContent = "delete";
 	deleteEl.addEventListener("click", deleteSet);
 	titleEl.appendChild(deleteEl);
@@ -68,18 +74,19 @@ function renderTabSet(tabSet) {
 	for (var i = 0; i < tabs.length; i++) {
 		let tab = tabs[i];
 		let tabEl = document.createElement("div");
-		tabEl.style = "display: inline-block; padding-left: " + tabMargin + "px; padding-right: " + tabMargin + "px; text-align: center; border-right: 1px solid #ccc; cursor: pointer;";
+		tabEl.classList.add("tab");
 		let tabImage = document.createElement("div");
 		tabImage.setAttribute("title", tab.title)
+		tabImage.classList.add("tabImage");
 		if (tab.iconUrl) {
-			tabImage.style = "height: " + tabWidth + "px; background-image: url('" + tab.iconUrl + "'); background-size: contain; background-position: center; background-repeat: no-repeat";	
+			tabImage.style = "background-image: url('" + tab.iconUrl + "');";	
 		}
 		else {
-			tabImage.style = "height: 30px; width: 30px; background: black;";	
+			tabImage.classList.add("default");
 		}
 		tabEl.appendChild(tabImage);
 		let tabDescription = document.createElement("div");
-		tabDescription.style = "overflow: hidden; font-size: 10px;"
+		tabDescription.classList.add("tabDescription");
 		tabDescription.textContent = tab.title.substring(0, 8);
 		tabEl.setAttribute("data-url", tab.url);
 		tabEl.appendChild(tabDescription);
@@ -107,13 +114,13 @@ function openIndividualLink(e) {
 }
 
 function deleteSet(e) {
-	var name = e.target.getAttribute("data-name");
-	var setEl = e.target.parentElement;
+	var id = parseInt(e.target.getAttribute("data-id"));
+	var setEl = e.target.parentElement.parentElement;
 	setEl.parentNode.removeChild(setEl);
 	chrome.storage.local.get('savedTabSets', function(data) {
 		var savedTabSets = data.savedTabSets;
 		for (var i = 0; i < savedTabSets.length; i++) {
-			if (savedTabSets[i].name === name) {
+			if (savedTabSets[i].id === id) {
 				savedTabSets.splice(i, 1);
 				chrome.storage.local.set({savedTabSets: savedTabSets});
 				return;
@@ -123,18 +130,20 @@ function deleteSet(e) {
 }
 
 function restoreSet(e) {
-	var name = e.target.getAttribute("data-name");
+	var id = parseInt(e.target.getAttribute("data-id"));
 	var setEl = e.target.parentElement;
 	chrome.storage.local.get('savedTabSets', function(data) {
 		var savedTabSets = data.savedTabSets;
 		for (var i = 0; i < savedTabSets.length; i++) {
-			if (savedTabSets[i].name === name) {
+			if (savedTabSets[i].id === id) {
 				var urls = savedTabSets[i].tabs.map(x => x.url);
 				chrome.windows.create({
 					type: "normal",
 					state: "maximized",
 					url: urls
-				})
+				}, function(newWindow) {
+					console.log(newWindow);
+				});
 			}
 		}
 	})

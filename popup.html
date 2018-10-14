@@ -2,7 +2,29 @@
 <html>
   <head>
     <style>
-      button {
+      .tab {
+        display: inline-block; 
+        padding: 0 5px;
+        text-align: center; 
+        border-right: 1px solid #ccc; 
+        cursor: pointer;
+      }
+      .tabImage {
+          height: 30px; 
+          background-size: contain; 
+          background-position: center; 
+          background-repeat: no-repeat
+      }
+      .tabImage.default {
+          width: 30px; 
+          background: black;
+      }
+      .tabDescription {
+          overflow: hidden; 
+          font-size: 10px;
+      }
+      .pointer {
+        cursor: pointer;
       }
     </style>
   </head>
