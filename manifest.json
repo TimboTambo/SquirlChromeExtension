@@ -1,7 +1,7 @@
 {
-  "name": "Getting Started Example",
+  "name": "Sessions",
   "version": "1.0",
-  "description": "Build an Extension!",
+  "description": "Keep hold of all your sessions",
   "permissions": ["tabs", "declarativeContent", "storage"],
   "options_page": "options.html",
   "background": {
