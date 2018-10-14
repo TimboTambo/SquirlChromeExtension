@@ -13,38 +13,36 @@
 
 'use strict';
 
-let createNewBtn = document.getElementById('createNew');
+var createNewBtn = document.getElementById('createNew');
+var openWindows = [];
+var savedTabSets = [];
 
 createNewBtn.onclick = function(element) {
-  let name = document.getElementById('createNewName').value;
-  
-  chrome.storage.local.get("savedTabSets", function(data) {
-  	chrome.tabs.query({currentWindow: true}, function(tabs) {
-  		let currentSavedSets = data.savedTabSets || [];
-  		let currentOpenTabs = [];
-	    for (var i = 0; i < tabs.length; i++) {
-	    	let tab = tabs[i];
-	    	currentOpenTabs.push({iconUrl: tab.favIconUrl, url: tab.url, title: tab.title});	
+    let name = document.getElementById('createNewName').value;
+    chrome.tabs.query({currentWindow: true}, function(tabs) {
+        var currentOpenTabs = [];
+        for (var i = 0; i < tabs.length; i++) {
+	        var tab = tabs[i];
+	        currentOpenTabs.push({iconUrl: tab.favIconUrl, url: tab.url, title: tab.title});	
 	    }
-	    var obj = {name: name, tabs: currentOpenTabs, id: currentSavedSets.length};
-	    currentSavedSets.push(obj);
+	    var obj = {name: name, tabs: currentOpenTabs, id: savedTabSets.length};
+	    savedTabSets.push(obj);
 	    renderTabSet(obj);
-	    chrome.storage.local.set({savedTabSets: currentSavedSets});
+	    chrome.storage.local.set({savedTabSets: savedTabSets});
 	    document.getElementById("createNewName").value = "";
-	});	
-  });
+    });	
 }
 
-function renderTabSets(tabSets) {
-	let savedTabs = document.getElementById('savedTabs');
-	savedTabs.innerHTML = '';
-	for (var i = 0; i < tabSets.length; i++) {
-		renderTabSet(tabSets[i]);
+function renderTabSets() {
+	var savedTabsEl = document.getElementById('savedTabs');
+	savedTabsEl.innerHTML = '';
+	for (var i = 0; i < savedTabSets.length; i++) {
+		renderTabSet(savedTabSets[i]);
 	}
 }
 
 function renderTabSet(tabSet) {
-	let savedTabs = document.getElementById('savedTabs');
+	let savedTabsEl = document.getElementById('savedTabs');
 	let tabWidth = 30;
 	let tabMargin = 5;
 	let tabSetEl = document.createElement("div");
@@ -53,7 +51,6 @@ function renderTabSet(tabSet) {
 	titleEl.textContent = tabSet.name;
 	if (tabSet.isActiveInWindow) {
 		titleEl.textContent += " - active";
-		console.log("Labeling as active");
 		// add class too
 	}
 	tabSetEl.appendChild(titleEl);
@@ -98,10 +95,10 @@ function renderTabSet(tabSet) {
 	};
 
 	if (tabSet.isActiveInWindow) {
-		savedTabs.insertBefore(tabSetEl, savedTabs.firstChild);	
+		savedTabsEl.insertBefore(tabSetEl, savedTabs.firstChild);	
 	}
 	else {
-		savedTabs.appendChild(tabSetEl);	
+		savedTabsEl.appendChild(tabSetEl);	
 	}
 
 	var currentDocWidth = document.body.style.width;
@@ -126,59 +123,52 @@ function deleteSet(e) {
 	var id = parseInt(e.target.getAttribute("data-id"));
 	var setEl = e.target.parentElement.parentElement;
 	setEl.parentNode.removeChild(setEl);
-	chrome.storage.local.get('savedTabSets', function(data) {
-		var savedTabSets = data.savedTabSets;
-		for (var i = 0; i < savedTabSets.length; i++) {
-			if (savedTabSets[i].id === id) {
-				savedTabSets.splice(i, 1);
-				chrome.storage.local.set({savedTabSets: savedTabSets});
-				return;
-			}
+	
+	for (var i = 0; i < savedTabSets.length; i++) {
+		if (savedTabSets[i].id === id) {
+			savedTabSets.splice(i, 1);
+			chrome.storage.local.set({savedTabSets: savedTabSets});
+			return;
 		}
-	})
+	}
+	
 }
 
 function restoreSet(e) {
 	var id = parseInt(e.target.getAttribute("data-id"));
 	var setEl = e.target.parentElement;
-	chrome.storage.local.get('savedTabSets', function(data) {
-		var savedTabSets = data.savedTabSets;
-		for (var i = 0; i < savedTabSets.length; i++) {
-			if (savedTabSets[i].id === id) {
-				var tabSet = savedTabSets[i];
-				var urls = savedTabSets[i].tabs.map(x => x.url);
-				chrome.windows.create({
-					type: "normal",
-					state: "maximized",
-					url: urls
-				}, function(newWindow) {
-					if (!tabSet.windows) {
-						tabSet.windows = [];
-					}
-					tabSet.windows.push(newWindow.id);
-					console.log("Saving");
-					console.log(savedTabSets);
-					chrome.storage.local.set({savedTabSets: savedTabSets});
-				});
-			}
+	
+	for (var i = 0; i < savedTabSets.length; i++) {
+		if (savedTabSets[i].id === id) {
+			var tabSet = savedTabSets[i];
+			var urls = savedTabSets[i].tabs.map(x => x.url);
+			chrome.windows.create({
+				type: "normal",
+				state: "maximized",
+				url: urls
+			}, function(newWindow) {
+				if (!tabSet.windows) {
+					tabSet.windows = [];
+				}
+				tabSet.windows.push(newWindow.id);
+				openWindows.push(newWindow);
+				chrome.storage.local.set({savedTabSets: savedTabSets});
+			});
 		}
-	})
+	}
 }
 
-function updateWindowsData(savedTabSets, windows) {
+function updateWindowsData() {
 	for (var i = 0; i < savedTabSets.length; i++) {
 		var tabSet = savedTabSets[i];
 		tabSet.isActiveInWindow = false;
 		if (tabSet.windows) {
 			for (var j = 0; j < tabSet.windows.length; j++) {
-				console.log("Saved: " + tabSet.windows[j]);
 				var updatedAssociatedWindows = [];
-				for (var k = 0; k < windows.length; k++) {
-					console.log("Window: " + windows[k].id);
-					if (windows[k].id == tabSet.windows[j]) {
-						updatedAssociatedWindows.push(windows[k]);
-						if (windows[k].focused) {
-							console.log("Active!");
+				for (var k = 0; k < openWindows.length; k++) {
+					if (openWindows[k].id == tabSet.windows[j]) {
+						updatedAssociatedWindows.push(openWindows[k].id);
+						if (openWindows[k].focused) {
 							tabSet.isActiveInWindow = true;
 						}
 					}	
@@ -187,16 +177,15 @@ function updateWindowsData(savedTabSets, windows) {
 			tabSet.windows = updatedAssociatedWindows;
 		}	
 	}
-	console.log("Updating with");
-	console.log(savedTabSets);
 	chrome.storage.local.set({savedTabSets: savedTabSets});
-	return savedTabSets;
 }
 
 window.onload = function() {
 	chrome.storage.local.get('savedTabSets', function(data) {
 		if (data.savedTabSets && data.savedTabSets.length) {
+			savedTabSets = data.savedTabSets;
 			chrome.windows.getAll(function(windows) {
+				openWindows = windows;
 				chrome.windows.getCurrent(function(currentWindow) {
 					for (var i = 0; i < windows.length; i++) {
 						if (currentWindow.id === windows[i].id) {
@@ -204,8 +193,8 @@ window.onload = function() {
 							break;
 						}
 					}
-					var updatedSavedTabSets = updateWindowsData(data.savedTabSets, windows);
-					renderTabSets(updatedSavedTabSets);			
+					var updatedSavedTabSets = updateWindowsData();
+					renderTabSets();			
 				})
 			})
 		};
