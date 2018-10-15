@@ -52,11 +52,20 @@
       }
       .name {
         margin-right: 10px;
-        font-weight: 700;
-        font-size: 16px;
+        font-size: 14px;
       }
       .title {
         margin-bottom: 10px;
+      }
+      .hidden {
+        display: none;
+      }
+      .buttons {
+        float: right;
+      }
+      .setTitle {
+        font-weight: 700;
+        font-size: 14px;
       }
     </style>
   </head>
@@ -66,6 +75,18 @@
       <button id="createNew">Save new</button>
     </div>
     <div id="savedTabs">
+      <div id="thisWindowSet" class="hidden">
+      </div>
+      <div id="activeSets" class="hidden">
+        <div class="setTitle">
+          Active
+        </div>
+      </div>
+      <div id="savedSets" class="hidden">
+        <div class="setTitle">
+          Saved
+        </div>
+      </div>
     </div>
     <script src="popup.js"></script>
   </body>

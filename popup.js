@@ -14,8 +14,11 @@
 'use strict';
 
 var createNewBtn = document.getElementById('createNew');
-var openWindows = [];
 var savedTabSets = [];
+var thisWindowSetEl = document.getElementById('thisWindowSet');
+var activeSetsEl = document.getElementById('activeSets');
+var savedSetsEl = document.getElementById('savedSets');
+var setEls = {thisWindow: thisWindowSetEl, active: activeSetsEl, saved: savedSetsEl};
 
 createNewBtn.onclick = function(element) {
     let name = document.getElementById('createNewName').value;
@@ -27,7 +30,7 @@ createNewBtn.onclick = function(element) {
 	    }
 	    chrome.windows.getCurrent(function(currentWindow) {
 	    	console.log("Saving with: " + currentWindow.id);
-			var obj = {name: name, tabs: currentOpenTabs, id: savedTabSets.length, isActiveInWindow: true, windows: [currentWindow.id] };
+			var obj = {name: name, tabs: currentOpenTabs, id: savedTabSets.length, isActiveInWindow: true, window: currentWindow.id };
 			    savedTabSets.push(obj);
 			    renderTabSet(obj);
 			    chrome.storage.local.set({savedTabSets: savedTabSets});
@@ -38,15 +41,12 @@ createNewBtn.onclick = function(element) {
 }
 
 function renderTabSets() {
-	var savedTabsEl = document.getElementById('savedTabs');
-	savedTabsEl.innerHTML = '';
 	for (var i = 0; i < savedTabSets.length; i++) {
 		renderTabSet(savedTabSets[i]);
 	}
 }
 
 function renderTabSet(tabSet) {
-	var savedTabsEl = document.getElementById('savedTabs');
 	var tabWidth = 30;
 	var tabMargin = 5;
 	var tabBorder = 1;
@@ -71,6 +71,10 @@ function renderTabSet(tabSet) {
 	nameEl.textContent = tabSet.name;
 	titleEl.appendChild(nameEl);
 	
+	var buttonsEl = document.createElement("span");
+	buttonsEl.classList.add("buttons");
+	titleEl.appendChild(buttonsEl);
+
 	if (tabSet.isActiveInWindow) {
 		var updateEl = document.createElement("button");
 		updateEl.setAttribute("class", "updateBtn");
@@ -78,16 +82,16 @@ function renderTabSet(tabSet) {
 		updateEl.classList.add("pointer");
 		updateEl.textContent = "Update";
 		updateEl.addEventListener("click", updateSession);
-		titleEl.appendChild(updateEl);
+		buttonsEl.appendChild(updateEl);
 	}
-	else if (tabSet.windows.length) {
+	else if (tabSet.window) {
 		var switchEl = document.createElement("button");
 		switchEl.setAttribute("class", "switchBtn");
 		switchEl.setAttribute("data-id", tabSet.id);
 		switchEl.classList.add("pointer");
 		switchEl.textContent = "Switch to";
 		switchEl.addEventListener("click", switchToWindow);
-		titleEl.appendChild(switchEl);
+		buttonsEl.appendChild(switchEl);
 	}
 	else{
 		var restoreEl = document.createElement("button");
@@ -96,7 +100,7 @@ function renderTabSet(tabSet) {
 		restoreEl.classList.add("pointer");
 		restoreEl.textContent = "Restore";
 		restoreEl.addEventListener("click", restoreSet);
-		titleEl.appendChild(restoreEl);
+		buttonsEl.appendChild(restoreEl);
 	}
 
 	var deleteEl = document.createElement("button");
@@ -105,7 +109,7 @@ function renderTabSet(tabSet) {
 	deleteEl.classList.add("pointer");
 	deleteEl.textContent = "Delete";
 	deleteEl.addEventListener("click", deleteSet);
-	titleEl.appendChild(deleteEl);
+	buttonsEl.appendChild(deleteEl);
 
 	var tabListEl = document.createElement("div");
 	tabListEl.classList.add("tabList");
@@ -135,10 +139,16 @@ function renderTabSet(tabSet) {
 	};
 
 	if (tabSet.isActiveInWindow) {
-		savedTabsEl.insertBefore(tabSetEl, savedTabs.firstChild);	
+		setEls.thisWindow.appendChild(tabSetEl, savedTabs.firstChild);	
+		setEls.thisWindow.classList.remove("hidden");
+	}
+	else if (tabSet.window) {
+		setEls.active.appendChild(tabSetEl, savedTabs.firstChild);	
+		setEls.active.classList.remove("hidden");
 	}
 	else {
-		savedTabsEl.appendChild(tabSetEl);	
+		setEls.saved.appendChild(tabSetEl, savedTabs.firstChild);	
+		setEls.saved.classList.remove("hidden");
 	}
 
 	var currentDocWidth = document.body.style.width;
@@ -162,11 +172,10 @@ function openIndividualLink(e) {
 function switchToWindow(e) {
 	var id = parseInt(e.target.getAttribute("data-id"));
 	var set = getSet(id);
-	if (!set || !set.windows) {
+	if (!set || !set.window) {
 		return;
 	}
-	var windowId = set.windows[0];
-	chrome.windows.update(windowId, {focused: true});
+	chrome.windows.update(set.window, {focused: true});
 }
 
 function updateSession(e) {
@@ -225,32 +234,29 @@ function restoreSet(e) {
 		state: "maximized",
 		url: urls
 	}, function(newWindow) {
-		if (!tabSet.windows) {
-			tabSet.windows = [];
-		}
-		tabSet.windows.push(newWindow.id);
-		openWindows.push(newWindow);
+		tabSet.window = newWindow.id;
 		chrome.storage.local.set({savedTabSets: savedTabSets});
 	});
 }
 
-function updateWindowsData() {
+function updateWindowsData(openWindows) {
 	for (var i = 0; i < savedTabSets.length; i++) {
 		var tabSet = savedTabSets[i];
 		tabSet.isActiveInWindow = false;
-		if (tabSet.windows && tabSet.windows.length) {
-			for (var j = 0; j < tabSet.windows.length; j++) {
-				var updatedAssociatedWindows = [];
-				for (var k = 0; k < openWindows.length; k++) {
-					if (openWindows[k].id === tabSet.windows[j]) {
-						updatedAssociatedWindows.push(openWindows[k].id);
-						if (openWindows[k].focused) {
-							tabSet.isActiveInWindow = true;
-						}
-					}	
-				}
+		var windowStillOpen = false;
+		if (tabSet.window) {
+			for (var k = 0; k < openWindows.length; k++) {
+				if (openWindows[k].id === tabSet.window) {
+					windowStillOpen = true;
+					if (openWindows[k].focused) {
+						tabSet.isActiveInWindow = true;
+					}
+					break;
+				}	
 			}
-			tabSet.windows = updatedAssociatedWindows;
+			if (!windowStillOpen) {
+				tabSet.window = "";	
+			}
 		}	
 	}
 	chrome.storage.local.set({savedTabSets: savedTabSets});
@@ -268,12 +274,11 @@ window.onload = function() {
 							break;
 						}
 					}
-					openWindows = windows;
 					console.log("Open windows: ");
-					console.log(openWindows);
+					console.log(windows);
 					console.log("Loaded tab sets: ");
 					console.log(savedTabSets);
-					updateWindowsData();
+					updateWindowsData(windows);
 					console.log("Processed tab sets: " );
 					console.log(savedTabSets);
 					renderTabSets();			
