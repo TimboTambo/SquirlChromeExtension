@@ -11,13 +11,13 @@
         margin-right: 5px;
         border-radius: 5px;
       }
+      #savedTabs {
+        margin-top: 5px;
+      }
       .tabSet {
         padding: 5px;
         margin: 5px 0px;
         border-top: 2px solid #aaa;
-      }
-      .tabSet:first-child {
-        margin-top: 10px;
       }
       .active {
         background: #313131;
@@ -75,16 +75,16 @@
       <button id="createNew">Save new</button>
     </div>
     <div id="savedTabs">
-      <div id="thisWindowSet" class="hidden">
-      </div>
       <div id="activeSets" class="hidden">
         <div class="setTitle">
           Active
         </div>
+        <div id="thisWindowSet" class="hidden">
+        </div>
       </div>
       <div id="savedSets" class="hidden">
         <div class="setTitle">
-          Saved
+          Inactive
         </div>
       </div>
     </div>
