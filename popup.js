@@ -30,7 +30,7 @@ createNewBtn.onclick = function(element) {
 	    }
 	    chrome.windows.getCurrent(function(currentWindow) {
 	    	console.log("Saving with: " + currentWindow.id);
-			var obj = {name: name, tabs: currentOpenTabs, id: savedTabSets.length, isActiveInWindow: true, window: currentWindow.id };
+			var obj = {name: name, tabs: currentOpenTabs, id: getId(), isActiveInWindow: true, window: currentWindow.id };
 			    savedTabSets.push(obj);
 			    renderTabSet(obj);
 			    chrome.storage.local.set({savedTabSets: savedTabSets});
@@ -44,6 +44,10 @@ function renderTabSets() {
 	for (var i = 0; i < savedTabSets.length; i++) {
 		renderTabSet(savedTabSets[i]);
 	}
+}
+
+function getId() {
+	return Math.floor((Math.random() * 10000) + 1);
 }
 
 function renderTabSet(tabSet) {
@@ -66,6 +70,13 @@ function renderTabSet(tabSet) {
 	titleEl.classList.add("title");
 	tabSetEl.appendChild(titleEl);
 
+	if (tabSet.isUnsaved) {
+		var newNameEl = document.createElement("input");
+		newNameEl.setAttribute("type", "text");
+		newNameEl.setAttribute("placeholder", "Unsaved");
+		titleEl.appendChild(newNameEl);
+	}
+
 	var nameEl = document.createElement("span");
 	nameEl.classList.add("name");
 	nameEl.textContent = tabSet.name;
@@ -75,7 +86,16 @@ function renderTabSet(tabSet) {
 	buttonsEl.classList.add("buttons");
 	titleEl.appendChild(buttonsEl);
 
-	if (tabSet.isActiveInWindow) {
+	if (tabSet.isUnsaved) {
+		var saveEl = document.createElement("button");
+		saveEl.setAttribute("class", "saveBtn");
+		saveEl.setAttribute("data-id", tabSet.id);
+		saveEl.classList.add("pointer");
+		saveEl.textContent = "Save";
+		saveEl.addEventListener("click", saveSet);
+		buttonsEl.appendChild(saveEl);
+	}
+	if (!tabSet.isUnsaved && tabSet.isActiveInWindow) {
 		var updateEl = document.createElement("button");
 		updateEl.setAttribute("class", "updateBtn");
 		updateEl.setAttribute("data-id", tabSet.id);
@@ -84,7 +104,7 @@ function renderTabSet(tabSet) {
 		updateEl.addEventListener("click", updateSession);
 		buttonsEl.appendChild(updateEl);
 	}
-	else if (tabSet.window) {
+	else if (!tabSet.isActiveInWindow && tabSet.window) {
 		var switchEl = document.createElement("button");
 		switchEl.setAttribute("class", "switchBtn");
 		switchEl.setAttribute("data-id", tabSet.id);
@@ -141,6 +161,7 @@ function renderTabSet(tabSet) {
 	if (tabSet.isActiveInWindow) {
 		setEls.thisWindow.appendChild(tabSetEl, savedTabs.firstChild);	
 		setEls.thisWindow.classList.remove("hidden");
+		setEls.active.classList.remove("hidden");
 	}
 	else if (tabSet.window) {
 		setEls.active.appendChild(tabSetEl, savedTabs.firstChild);	
@@ -178,6 +199,10 @@ function switchToWindow(e) {
 	chrome.windows.update(set.window, {focused: true});
 }
 
+function saveSet(e) {
+	
+}
+
 function updateSession(e) {
 	var id = parseInt(e.target.getAttribute("data-id"));
 	var set = getSet(id);
@@ -208,7 +233,7 @@ function getSet(id) {
 
 function deleteSet(e) {
 	var id = parseInt(e.target.getAttribute("data-id"));
-	var setEl = e.target.parentElement.parentElement;
+	var setEl = e.target.parentElement.parentElement.parentElement;
 	setEl.parentNode.removeChild(setEl);
 	
 	for (var i = 0; i < savedTabSets.length; i++) {
@@ -240,8 +265,10 @@ function restoreSet(e) {
 }
 
 function updateWindowsData(openWindows) {
+	
 	for (var i = 0; i < savedTabSets.length; i++) {
 		var tabSet = savedTabSets[i];
+		tabSet.id = i;
 		tabSet.isActiveInWindow = false;
 		var windowStillOpen = false;
 		if (tabSet.window) {
@@ -251,6 +278,7 @@ function updateWindowsData(openWindows) {
 					if (openWindows[k].focused) {
 						tabSet.isActiveInWindow = true;
 					}
+					openWindows.splice(k, 1);
 					break;
 				}	
 			}
@@ -260,6 +288,19 @@ function updateWindowsData(openWindows) {
 		}	
 	}
 	chrome.storage.local.set({savedTabSets: savedTabSets});
+
+	for (var i = 0; i < openWindows.length; i++) {
+		var currentOpenTabs = [];
+        var openWindow = openWindows[i];
+        chrome.tabs.query({windowId: openWindow.id}, function(tabs) {
+	        for (var j = 0; j < tabs.length; j++) {
+		        var tab = tabs[j];
+		        currentOpenTabs.push({iconUrl: tab.favIconUrl, url: tab.url, title: tab.title});	
+		    }
+		    var obj = { tabs: currentOpenTabs, id: getId(), isActiveInWindow: openWindow.focused, window: openWindow.id, isUnsaved: true };
+		    savedTabSets.push(obj);
+		});
+	}
 }
 
 window.onload = function() {
