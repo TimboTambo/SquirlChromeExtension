@@ -85,8 +85,9 @@ function renderTabSet(tabSet) {
 	buttonsEl.classList.add("buttons");
 	titleEl.appendChild(buttonsEl);
 
+	var updateEl;
 	if (tabSet.isActiveInWindow && !tabSet.isUnsaved) {
-		var updateEl = document.createElement("button");
+		updateEl = document.createElement("button");
 		updateEl.setAttribute("class", "updateBtn");
 		updateEl.setAttribute("data-id", tabSet.id);
 		updateEl.classList.add("pointer");
@@ -153,7 +154,7 @@ function renderTabSet(tabSet) {
 		tabEl.appendChild(tabImage);
 		let tabDescription = document.createElement("div");
 		tabDescription.classList.add("tabDescription");
-		tabDescription.textContent = tab.title.substring(0, 8);
+		tabDescription.textContent = tab.title ? tab.title.substring(0, 8) : "";
 		tabEl.setAttribute("data-url", tab.url);
 		tabEl.appendChild(tabDescription);
 		tabEl.addEventListener("click", openIndividualLink);
@@ -174,7 +175,7 @@ function renderTabSet(tabSet) {
 		setEls.saved.classList.remove("hidden");
 	}
 
-	if (!containsDifferences) {
+	if (!containsDifferences && tabSet.isActiveInWindow && !tabSet.isUnsaved) {
 		updateEl.classList.add("hidden");
 	}
 
@@ -308,36 +309,47 @@ function updateWindowsData(openWindows, callback) {
 					if (openWindow.focused) {
 						tabSet.isActiveInWindow = true;
 					}
-					var openUrls = [];
-					var openWindowTabs = [];
-					console.log("About to set tab statuses");
-					for (var j = 0; j < openWindow.tabs.length; j++) {
-						var tab = openWindow.tabs[j];
-						openUrls.push(tab.url);
-						openWindowTabs.push(tab);
-					}
-					console.log("Open tabs:");
-					console.log(openWindowTabs)
+					var savedTabUrls = [];
+					var savedTabs = [];
+					
 					for (var j = 0; j < tabSet.tabs.length; j++) {
 						var tab = tabSet.tabs[j];
-						var indexOfTabInWindow = openUrls.indexOf(tab.url);
-						if (indexOfTabInWindow > -1) {
-							openUrls.splice(indexOfTabInWindow, 1);
-							openWindowTabs.splice(indexOfTabInWindow, 1)
+						savedTabUrls.push(tab.url);
+						savedTabs.push(tab);
+					}
+				
+					console.log("Saved tab urls:");
+					console.log(savedTabUrls);
+
+					var currentTabs = [];
+					for (var j = 0; j < openWindow.tabs.length; j++) {
+						var openWindowtab = openWindow.tabs[j];
+						var indexOfTabInSaved = savedTabUrls.indexOf(openWindowtab.url);
+						var tab;
+						if (indexOfTabInSaved > -1) {
+							savedTabUrls.splice(indexOfTabInSaved, 1);
+							tab = savedTabs.splice(indexOfTabInSaved, 1)[0]
 							tab.isClosed = false;
 						}
 						else {
-							tab.isClosed = true;
+							tab = {iconUrl: openWindowtab.favIconUrl, url: openWindowtab.url, title: openWindowtab.title, isNew: true};
 						}
+						currentTabs.push(tab);
 					}
-					console.log("New tabs:");
-					console.log(openWindowTabs);
-					for (var j = 0; j < openWindowTabs.length; j++) {
-						var tab = openWindowTabs[j];
-						tabSet.tabs.push({iconUrl: tab.favIconUrl, url: tab.url, title: tab.title, isNew: true});
+					
+					console.log("Current tabs so far:");
+					console.log(currentTabs)
+
+					for (var j = 0; j < savedTabs.length; j++) {
+						var tab = savedTabs[j];
+						tab.isClosed = true;
+						currentTabs.push(tab);
 					}
 
-					var urls = 
+					console.log("Current tabs final:");
+					console.log(currentTabs);
+
+					tabSet.tabs = currentTabs;
 					openWindows.splice(k, 1);
 					break;
 				}	
