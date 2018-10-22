@@ -9,64 +9,45 @@
 'use strict';
 
 
-var savedTabSets = [];
-var unsavedTabSets = [];
-var thisWindowSetEl = document.getElementById('thisWindowSet');
-var activeSetsEl = document.getElementById('activeSets');
-var savedSetsEl = document.getElementById('savedSets');
-var setEls = {thisWindow: thisWindowSetEl, active: activeSetsEl, saved: savedSetsEl};
+let savedTabSets = [];
+let unsavedTabSets = [];
+let thisWindowSetEl = document.getElementById('thisWindowSet');
+let activeSetsEl = document.getElementById('activeSets');
+let savedSetsEl = document.getElementById('savedSets');
+let setEls = {thisWindow: thisWindowSetEl, active: activeSetsEl, saved: savedSetsEl};
+let tabWidth = 30;
+let tabMargin = 5;
+let tabBorder = 1;
 
 function renderTabSets() {
-	console.log("Rendering saved tab sets...")
-	console.log(savedTabSets);
-	for (var i = 0; i < savedTabSets.length; i++) {
+	for (let i = 0; i < savedTabSets.length; i++) {
 		renderTabSet(savedTabSets[i]);
 	}
-	console.log(unsavedTabSets);
-	for (var i = 0; i < unsavedTabSets.length; i++) {
-		console.log(unsavedTabSets[i]);
+	for (let i = 0; i < unsavedTabSets.length; i++) {
 		renderTabSet(unsavedTabSets[i]);
 	}
-	console.log("Rendering unsaved tab sets...")
-	console.log(unsavedTabSets);
-}
-
-function getId() {
-	return Math.floor((Math.random() * 10000) + 1);
+	updateInactiveSetsVisibility();
 }
 
 function renderTabSet(tabSet) {
-	console.log("Rendering set");
-	console.log(tabSet);
-	var tabWidth = 30;
-	var tabMargin = 5;
-	var tabBorder = 1;
-	var tabSetEl = document.createElement("div");
+	let tabSetEl = document.createElement("div");
 	tabSetEl.classList.add("tabSet");
 	tabSetEl.setAttribute("data-id", tabSet.id);
 
-	if (tabSet.isActiveInWindow) {
-		tabSetEl.classList.add("active");
-		var currentlyActiveEl = document.createElement("div");
-		currentlyActiveEl.classList.add("activeMsg");
-		currentlyActiveEl.textContent = "IN THIS WINDOW"
-		tabSetEl.appendChild(currentlyActiveEl);
-	}
-
-	var titleEl = document.createElement("div");
+	let titleEl = document.createElement("div");
 	titleEl.classList.add("title");
 	tabSetEl.appendChild(titleEl);
 
-	if (tabSet.isUnsaved && tabSet.isActiveInWindow) {
-		var newNameDivEl = document.createElement("div")
+	if (tabSet.isUnsaved && tabSet.isInThisWindow) {
+		let newNameDivEl = document.createElement("div")
 		titleEl.appendChild(newNameDivEl);
 
-		var newNameEl = document.createElement("input");
+		let newNameEl = document.createElement("input");
 		newNameEl.setAttribute("type", "text");
 		newNameEl.setAttribute("placeholder", "Unsaved");
 		newNameDivEl.appendChild(newNameEl);
 
-		var saveEl = document.createElement("button");
+		let saveEl = document.createElement("button");
 		saveEl.setAttribute("class", "saveBtn");
 		saveEl.setAttribute("data-id", tabSet.id);
 		saveEl.classList.add("pointer");
@@ -75,70 +56,73 @@ function renderTabSet(tabSet) {
 		newNameDivEl.appendChild(saveEl);
 	}
 	else {
-		var nameEl = document.createElement("span");
+		let nameEl = document.createElement("span");
 		nameEl.classList.add("name");
 		nameEl.textContent = tabSet.name || "Unsaved";
+		if (tabSet.isInThisWindow) {
+			nameEl.textContent = "\u2605 " + nameEl.textContent;
+		}
 		titleEl.appendChild(nameEl);	
 	}
 	
-	var buttonsEl = document.createElement("span");
+	let buttonsEl = document.createElement("span");
 	buttonsEl.classList.add("buttons");
 	titleEl.appendChild(buttonsEl);
 
-	var updateEl;
-	if (tabSet.isActiveInWindow && !tabSet.isUnsaved) {
+	let updateEl;
+	if (tabSet.isInThisWindow && !tabSet.isUnsaved) {
 		updateEl = document.createElement("button");
 		updateEl.setAttribute("class", "updateBtn");
 		updateEl.setAttribute("data-id", tabSet.id);
 		updateEl.classList.add("pointer");
-		updateEl.textContent = "Update";
+		updateEl.textContent = "\u21A1";
 		updateEl.addEventListener("click", updateSet);
 		buttonsEl.appendChild(updateEl);
 	}
-	if (!tabSet.isActiveInWindow && tabSet.window) {
-		var switchEl = document.createElement("button");
+	if (!tabSet.isInThisWindow && tabSet.window) {
+		let switchEl = document.createElement("button");
 		switchEl.setAttribute("class", "switchBtn");
 		switchEl.setAttribute("data-id", tabSet.id);
 		switchEl.classList.add("pointer");
-		switchEl.textContent = "Switch to";
+		switchEl.textContent = "\u21CC";
 		switchEl.addEventListener("click", switchToWindow);
 		buttonsEl.appendChild(switchEl);
 	}
 	else if (!tabSet.window && !tabSet.isUnsaved) {
-		var restoreEl = document.createElement("button");
+		let restoreEl = document.createElement("button");
 		restoreEl.setAttribute("class", "restoreBtn");
 		restoreEl.setAttribute("data-id", tabSet.id);
 		restoreEl.classList.add("pointer");
-		restoreEl.textContent = "Restore";
+		restoreEl.textContent = "\u21D1";
 		restoreEl.addEventListener("click", restoreSet);
 		buttonsEl.appendChild(restoreEl);
 	}
 	if (!tabSet.isUnsaved) {
-		var deleteEl = document.createElement("button");
+		let deleteEl = document.createElement("button");
 		deleteEl.setAttribute("class", "deleteBtn");
 		deleteEl.setAttribute("data-id", tabSet.id);
 		deleteEl.classList.add("pointer");
-		deleteEl.textContent = "Delete";
+		deleteEl.textContent = "\u2716";
 		deleteEl.addEventListener("click", deleteSet);
 		buttonsEl.appendChild(deleteEl);
 	}
 
-	var tabListEl = document.createElement("div");
+	let tabListEl = document.createElement("div");
 	tabListEl.classList.add("tabList");
 	tabSetEl.appendChild(tabListEl);
 
-	var containsDifferences = false;
-	for (var i = 0; i < tabSet.tabs.length; i++) {
+	let containsUnsavedDifferences = false;
+	for (let i = 0; i < tabSet.tabs.length; i++) {
 		let tab = tabSet.tabs[i];
 		let tabEl = document.createElement("div");
 		tabEl.classList.add("tab");
 		if (tab.isClosed) {
 			tabEl.classList.add("closed");
-			containsDifferences = true;
+			containsUnsavedDifferences = true;
 		}
 		else if (tab.isNew) {
 			tabEl.classList.add("new");
-			containsDifferences = true;	
+			containsUnsavedDifferences = true;	
 		}
 
 		let tabImage = document.createElement("div");
@@ -161,7 +145,7 @@ function renderTabSet(tabSet) {
 		tabListEl.appendChild(tabEl);
 	};
 
-	if (tabSet.isActiveInWindow) {
+	if (tabSet.isInThisWindow) {
 		setEls.thisWindow.appendChild(tabSetEl, savedTabs.firstChild);	
 		setEls.thisWindow.classList.remove("hidden");
 		setEls.active.classList.remove("hidden");
@@ -175,12 +159,16 @@ function renderTabSet(tabSet) {
 		setEls.saved.classList.remove("hidden");
 	}
 
-	if (!containsDifferences && tabSet.isActiveInWindow && !tabSet.isUnsaved) {
+	if (!containsUnsavedDifferences && tabSet.isInThisWindow && !tabSet.isUnsaved) {
 		updateEl.classList.add("hidden");
 	}
 
-	var currentDocWidth = document.body.style.width;
-	if (currentDocWidth) {
+	updatePopupWidth(tabSet);
+}
+
+function updatePopupWidth(tabSet) {
+	let currentPopUpWidth = document.body.style.width;
+	if (currentPopUpWidth) {
 		document.body.style.width = Math.max(tabSet.tabs.length * (tabWidth + (tabMargin + tabBorder) * 2 + 10) + 10, 250, parseInt(document.body.style.width.replace("px", ""))) + "px";	
 	}
 	else {
@@ -188,8 +176,22 @@ function renderTabSet(tabSet) {
 	}
 }
 
+function updateInactiveSetsVisibility() {
+	var hasInactiveSets = savedTabSets.filter(x => !x.window).length > 0;
+	if (hasInactiveSets) {
+		savedSetsEl.classList.remove("hidden");
+	}
+	else {
+		savedSetsEl.classList.add("hidden");
+	}
+}
+
+function getId() {
+	return Math.floor((Math.random() * 10000) + 1);
+}
+
 function openIndividualLink(e) {
-	var url = e.target.getAttribute("data-url");
+	let url = e.target.getAttribute("data-url");
 	if (!url) {
 		openIndividualLink({target: e.target.parentElement});
 		return;
@@ -198,8 +200,8 @@ function openIndividualLink(e) {
 }
 
 function switchToWindow(e) {
-	var id = parseInt(e.target.getAttribute("data-id"));
-	var set = getSet(id);
+	let id = parseInt(e.target.getAttribute("data-id"));
+	let set = getSet(id);
 	if (!set || !set.window) {
 		return;
 	}
@@ -207,48 +209,48 @@ function switchToWindow(e) {
 }
 
 function saveSet(e) {
-	var id = parseInt(e.target.getAttribute("data-id"));
-	var set = getSet(id);
+	let id = parseInt(e.target.getAttribute("data-id"));
+	let set = getSet(id);
 	if (!set || !set.window) {
 		return;
 	}
-	var name = e.target.parentElement.querySelector("input").value;
+	let name = e.target.parentElement.querySelector("input").value;
     set.name = name;
     set.isUnsaved = false;
     savedTabSets.push(set);
     updateSavedSets();
-    var setEl = e.target.parentNode.parentNode.parentNode;
+    let setEl = e.target.parentNode.parentNode.parentNode;
     setEl.parentNode.removeChild(setEl);
     renderTabSet(set);
 }
 
 function updateSet(e) {
-	var id = parseInt(e.target.getAttribute("data-id"));
-	var set = getSet(id);
+	let id = parseInt(e.target.getAttribute("data-id"));
+	let set = getSet(id);
 	if (!set) {
 		return;
 	}
 	chrome.tabs.query({currentWindow: true}, function(tabs) {
-        var currentOpenTabs = [];
-        for (var i = 0; i < tabs.length; i++) {
-	        var tab = tabs[i];
+        let currentOpenTabs = [];
+        for (let i = 0; i < tabs.length; i++) {
+	        let tab = tabs[i];
 	        currentOpenTabs.push({iconUrl: tab.favIconUrl, url: tab.url, title: tab.title});	
 	    }
 	    set.tabs = currentOpenTabs;
 	    updateSavedSets();
-	    var tabSetEl = document.querySelector(".tabSet[data-id='" + id + "']");
+	    let tabSetEl = document.querySelector(".tabSet[data-id='" + id + "']");
 	    tabSetEl.parentNode.removeChild(tabSetEl);
 	    renderTabSet(set);
     });	
 }
 
 function getSet(id) {
-	for (var i = 0; i < savedTabSets.length; i++) {
+	for (let i = 0; i < savedTabSets.length; i++) {
 		if (savedTabSets[i].id === id) {
 			return savedTabSets[i];
 		}
 	}
-	for (var i = 0; i < unsavedTabSets.length; i++) {
+	for (let i = 0; i < unsavedTabSets.length; i++) {
 		if (unsavedTabSets[i].id === id) {
 			return unsavedTabSets[i];
 		}
@@ -256,18 +258,18 @@ function getSet(id) {
 }
 
 function deleteSet(e) {
-	var id = parseInt(e.target.getAttribute("data-id"));
-	var setEl = e.target.parentElement.parentElement.parentElement;
+	let id = parseInt(e.target.getAttribute("data-id"));
+	let setEl = e.target.parentElement.parentElement.parentElement;
 	setEl.parentNode.removeChild(setEl);
-	var set = getSet(id);
+	let set = getSet(id);
 	set.isUnsaved = true;
+	savedTabSets.splice(savedTabSets.indexOf(set), 1);
+	unsavedTabSets.push(set);
 	if (set.window) {
-		savedTabSets.splice(savedTabSets.indexOf(set), 1);
 		renderTabSet(set);
-
 	}
 	else {
-		unsavedTabSets.splice(savedTabSets.indexOf(set), 1);
+		updateInactiveSetsVisibility();
 	}
 	updateSavedSets();
 }
@@ -277,14 +279,14 @@ function updateSavedSets() {
 }
 
 function restoreSet(e) {
-	var id = parseInt(e.target.getAttribute("data-id"));
-	var setEl = e.target.parentElement;
-	var tabSet = getSet(id);
+	let id = parseInt(e.target.getAttribute("data-id"));
+	let setEl = e.target.parentElement;
+	let tabSet = getSet(id);
 	if (!tabSet) {
 		return;
 	}
 	
-	var urls = tabSet.tabs.map(x => x.url);
+	let urls = tabSet.tabs.map(x => x.url);
 	chrome.windows.create({
 		type: "normal",
 		state: "maximized",
@@ -296,36 +298,33 @@ function restoreSet(e) {
 }
 
 function updateWindowsData(openWindows, callback) {
-	for (var i = 0; i < savedTabSets.length; i++) {
-		var tabSet = savedTabSets[i];
+	for (let i = 0; i < savedTabSets.length; i++) {
+		let tabSet = savedTabSets[i];
 		tabSet.id = i;
-		tabSet.isActiveInWindow = false;
-		var windowStillOpen = false;
+		tabSet.isInThisWindow = false;
+		let windowStillOpen = false;
 		if (tabSet.window) {
-			for (var k = 0; k < openWindows.length; k++) {
-				var openWindow = openWindows[k];
+			for (let k = 0; k < openWindows.length; k++) {
+				let openWindow = openWindows[k];
 				if (openWindow.id === tabSet.window) {
 					windowStillOpen = true;
 					if (openWindow.focused) {
-						tabSet.isActiveInWindow = true;
+						tabSet.isInThisWindow = true;
 					}
-					var savedTabUrls = [];
-					var savedTabs = [];
+					let savedTabUrls = [];
+					let savedTabs = [];
 					
-					for (var j = 0; j < tabSet.tabs.length; j++) {
-						var tab = tabSet.tabs[j];
+					for (let j = 0; j < tabSet.tabs.length; j++) {
+						let tab = tabSet.tabs[j];
 						savedTabUrls.push(tab.url);
 						savedTabs.push(tab);
 					}
-				
-					console.log("Saved tab urls:");
-					console.log(savedTabUrls);
 
-					var currentTabs = [];
-					for (var j = 0; j < openWindow.tabs.length; j++) {
-						var openWindowtab = openWindow.tabs[j];
-						var indexOfTabInSaved = savedTabUrls.indexOf(openWindowtab.url);
-						var tab;
+					let currentTabs = [];
+					for (let j = 0; j < openWindow.tabs.length; j++) {
+						let openWindowtab = openWindow.tabs[j];
+						let indexOfTabInSaved = savedTabUrls.indexOf(openWindowtab.url);
+						let tab;
 						if (indexOfTabInSaved > -1) {
 							savedTabUrls.splice(indexOfTabInSaved, 1);
 							tab = savedTabs.splice(indexOfTabInSaved, 1)[0]
@@ -336,18 +335,12 @@ function updateWindowsData(openWindows, callback) {
 						}
 						currentTabs.push(tab);
 					}
-					
-					console.log("Current tabs so far:");
-					console.log(currentTabs)
 
-					for (var j = 0; j < savedTabs.length; j++) {
-						var tab = savedTabs[j];
+					for (let j = 0; j < savedTabs.length; j++) {
+						let tab = savedTabs[j];
 						tab.isClosed = true;
 						currentTabs.push(tab);
 					}
-
-					console.log("Current tabs final:");
-					console.log(currentTabs);
 
 					tabSet.tabs = currentTabs;
 					openWindows.splice(k, 1);
@@ -362,34 +355,25 @@ function updateWindowsData(openWindows, callback) {
 	
 	updateSavedSets();
 
-	for (var i = 0; i < openWindows.length; i++) {
+	for (let i = 0; i < openWindows.length; i++) {
         let openWindowId = openWindows[i].id;
         let windowFocused = openWindows[i].focused;
-        console.log("Getting tabs for window:")
-        console.log("Before: " + openWindowId + ": " + windowFocused);
-    	console.log("After: " + openWindowId + ": " + windowFocused);
-    	var currentOpenTabs = [];
-        for (var j = 0; j < openWindows[i].tabs.length; j++) {
-	        var tab = openWindows[i].tabs[j];
+    	let currentOpenTabs = [];
+        for (let j = 0; j < openWindows[i].tabs.length; j++) {
+	        let tab = openWindows[i].tabs[j];
 	        currentOpenTabs.push({iconUrl: tab.favIconUrl, url: tab.url, title: tab.title});	
 	    }
-	    var obj = { tabs: currentOpenTabs, id: getId(), isActiveInWindow: windowFocused, window: openWindowId, isUnsaved: true };
+	    let obj = { tabs: currentOpenTabs, id: getId(), isInThisWindow: windowFocused, window: openWindowId, isUnsaved: true };
 	    unsavedTabSets.push(obj);
-	    console.log("Pushing to unsavedTabSets");
-	    console.log(obj);
 	}
 }
 
 window.onload = function() {
 	chrome.storage.local.get('savedTabSets', function(data) {
 		savedTabSets = data.savedTabSets || [];
-		console.log("Saved tab sets:");
-		console.log(savedTabSets);
 		chrome.windows.getAll({"populate" : true}, function(windows) {
-			console.log("Windows:");
-			console.log(windows);
 			chrome.windows.getCurrent(function(currentWindow) {
-				for (var i = 0; i < windows.length; i++) {
+				for (let i = 0; i < windows.length; i++) {
 					if (currentWindow.id === windows[i].id) {
 						windows[i].focused = true;
 						break;
