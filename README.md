@@ -1,5 +1,5 @@
 # Squirrel
-Squirl is a new productivity tool for your browser.
+Squirrel is a new productivity tool for your browser.
 
 How much of your day do you spend foraging through the many tabs of your browser window as you switch between different tasks? 
 If you're anything like me, then the answer is too much.
